@@ -33,7 +33,7 @@ class Embedding(Module):
         self.num_embeddings = num_embeddings # Vocab size
         self.embedding_dim  = embedding_dim  # Embedding Dimension
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        self.weights = Linear.RParam(backend, num_embeddings, embedding_dim)
         ### END YOUR SOLUTION
     
     def forward(self, x: Tensor):
@@ -47,7 +47,8 @@ class Embedding(Module):
         """
         bs, seq_len = x.shape
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        oh = one_hot(x, self.num_embeddings)
+        return (oh.view(bs * seq_len, -1) @ self.weights.value).view(bs, seq_len, -1)
         ### END YOUR SOLUTION
 
     
@@ -71,7 +72,11 @@ class Dropout(Module):
             output : Tensor of shape (*)
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        if not self.training:
+            return x
+        mask = np.random.binomial(1, 1 - self.p_dropout, size=x.shape)
+        mask = tensor_from_numpy(mask, backend=x.backend)
+        return mask * x / (1 - self.p_dropout)
         ### END YOUR SOLUTION
 
 
@@ -135,7 +140,8 @@ class LayerNorm1d(Module):
         self.dim = dim
         self.eps = eps
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        self.weights = ones((self.dim,), backend)
+        self.bias = zeros((self.dim,), backend)
         ### END YOUR SOLUTION
 
     def forward(self, x: Tensor) -> Tensor:
