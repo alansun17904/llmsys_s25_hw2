@@ -474,6 +474,79 @@ __global__ void zipKernel(
     out[out_pos] = fn(fn_id, a_storage[a_pos], b_storage[b_pos]);
     /// END ASSIGN1_2
 }
+
+extern "C" {
+
+void MatrixMultiply(
+    float* out,
+    int* out_shape,
+    int* out_strides,
+    float* a_storage,
+    int* a_shape,
+    int* a_strides,
+    float* b_storage,
+    int* b_shape,
+    int* b_strides,
+    int batch, int m, int p
+) {
+    int n = a_shape[2];
+
+    // Allocate device memory
+    float *d_out, *d_a, *d_b;
+    cudaMalloc(&d_a, batch * m * n * sizeof(float));
+    cudaMalloc(&d_b, batch * n * p * sizeof(float));
+    cudaMalloc(&d_out, batch * m * p * sizeof(float));
+
+    int *d_out_shape, *d_out_strides, *d_a_shape, *d_a_strides, *d_b_shape, *d_b_strides;
+    cudaMalloc(&d_out_shape, 3 * sizeof(int));
+    cudaMalloc(&d_out_strides, 3 * sizeof(int));
+    cudaMalloc(&d_a_shape, 3 * sizeof(int));
+    cudaMalloc(&d_a_strides, 3 * sizeof(int));
+    cudaMalloc(&d_b_shape, 3 * sizeof(int));
+    cudaMalloc(&d_b_strides, 3 * sizeof(int));
+
+
+    // Copy data to the device
+    cudaMemcpy(d_a, a_storage, batch * m * n * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b, b_storage, batch * n * p * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_out_shape, out_shape, 3 * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_out_strides, out_strides, 3 * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_a_shape, a_shape, 3 * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_a_strides, a_strides, 3 * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b_shape, b_shape, 3 * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b_strides, b_strides, 3 * sizeof(int), cudaMemcpyHostToDevice);
+
+    int threadsPerBlock = BASE_THREAD_NUM;
+    dim3 blockDims(threadsPerBlock, threadsPerBlock, 1); // Adjust these values based on your specific requirements
+    dim3 gridDims((m + threadsPerBlock - 1) / threadsPerBlock, (p + threadsPerBlock - 1) / threadsPerBlock, batch);
+    MatrixMultiplyKernel<<<gridDims, blockDims>>>(
+        d_out, d_out_shape, d_out_strides, d_a, d_a_shape, d_a_strides, d_b, d_b_shape, d_b_strides
+    );
+
+    // Copy back to the host
+    cudaMemcpy(out, d_out, batch * m * p * sizeof(float), cudaMemcpyDeviceToHost);
+    
+    cudaDeviceSynchronize();
+
+    // Check CUDA execution
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+      fprintf(stderr, "Matmul Error: %s\n", cudaGetErrorString(err));
+      exit(EXIT_FAILURE);
+    }
+
+    // Free memory on device
+    cudaFree(d_a);
+    cudaFree(d_b);
+    cudaFree(d_out);
+    cudaFree(d_out_shape);
+    cudaFree(d_out_strides);
+    cudaFree(d_a_shape);
+    cudaFree(d_a_strides);
+    cudaFree(d_b_shape);
+    cudaFree(d_b_strides);
+}
+
 void tensorMap(
     float* out, 
     int* out_shape, 

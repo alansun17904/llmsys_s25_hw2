@@ -90,9 +90,17 @@ class Linear(Module):
             bias   - The learnable weights of shape (out_size, ) initialized from Uniform(-1/sqrt(in_size), 1/sqrt(in_size)).
         """
         self.out_size = out_size
+        self.has_bias = bias
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        self.weights = self.RParam(backend, in_size, out_size)
+        if bias:
+            self.bias = self.RParam(backend, out_size,)
         ### END YOUR SOLUTION
+
+    @classmethod
+    def RParam(cls, backend, *shape):
+        r = 0.1 * (rand(shape, backend=backend) - 0.5)
+        return Parameter(r)
 
     def forward(self, x: Tensor):
         """Applies a linear transformation to the incoming data.
@@ -105,7 +113,9 @@ class Linear(Module):
         """
         batch, in_size = x.shape
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        if self.has_bias:
+            return x.view(batch, in_size) @ self.weights.value.view(in_size, self.out_size) + self.bias.value
+        return x.view(batch, in_size) @ self.weights.value.view(in_size, self.out_size)
         ### END YOUR SOLUTION
 
 
