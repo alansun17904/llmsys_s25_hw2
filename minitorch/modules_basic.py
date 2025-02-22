@@ -33,7 +33,9 @@ class Embedding(Module):
         self.num_embeddings = num_embeddings # Vocab size
         self.embedding_dim  = embedding_dim  # Embedding Dimension
         ### BEGIN YOUR SOLUTION
-        self.weights = Linear.RParam(backend, num_embeddings, embedding_dim)
+        init_weights = np.random.normal(size=(num_embeddings, embedding_dim))
+        self.weights = tensor_from_numpy(init_weights, backend=backend)
+        self.weights = Parameter(self.weights)
         ### END YOUR SOLUTION
     
     def forward(self, x: Tensor):
@@ -48,7 +50,8 @@ class Embedding(Module):
         bs, seq_len = x.shape
         ### BEGIN YOUR SOLUTION
         oh = one_hot(x, self.num_embeddings)
-        return (oh.view(bs * seq_len, -1) @ self.weights.value).view(bs, seq_len, -1)
+        agg = oh.view(bs * seq_len, self.num_embeddings)
+        return (agg @ self.weights.value).view(bs, seq_len, self.embedding_dim)
         ### END YOUR SOLUTION
 
     
@@ -72,7 +75,7 @@ class Dropout(Module):
             output : Tensor of shape (*)
         """
         ### BEGIN YOUR SOLUTION
-        if not self.training:
+        if not self.training or self.p_dropout == 0:
             return x
         mask = np.random.binomial(1, 1 - self.p_dropout, size=x.shape)
         mask = tensor_from_numpy(mask, backend=x.backend)
@@ -140,8 +143,8 @@ class LayerNorm1d(Module):
         self.dim = dim
         self.eps = eps
         ### BEGIN YOUR SOLUTION
-        self.weights = ones((self.dim,), backend)
-        self.bias = zeros((self.dim,), backend)
+        self.weights = Parameter(ones((self.dim,), backend))
+        self.bias = Parameter(zeros((self.dim,), backend))
         ### END YOUR SOLUTION
 
     def forward(self, x: Tensor) -> Tensor:
@@ -157,5 +160,7 @@ class LayerNorm1d(Module):
         """
         batch, dim = x.shape
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        mean = x.mean(dim=1)
+        std = (x.var(dim=1) + self.eps) ** 0.5
+        return self.weights.value * (x - mean) / std + self.bias.value
         ### END YOUR SOLUTION
