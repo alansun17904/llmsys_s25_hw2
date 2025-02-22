@@ -140,9 +140,9 @@ def backpropagate(variable: Variable, deriv: Any) -> None:
         chain = var.chain_rule(parent_grads[var.unique_id])
         for parent in chain:
             if parent[0].unique_id in parent_grads:
-                parent_grads[parent[0].unique_id] += parent[1]
+                parent_grads[parent[0].unique_id] += 0.0 + parent[1]
             else:
-                parent_grads[parent[0].unique_id] = parent[1]
+                parent_grads[parent[0].unique_id] = 0.0 + parent[1]
     # END ASSIGN1_1
 
 
