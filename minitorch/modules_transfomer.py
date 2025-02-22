@@ -39,18 +39,17 @@ class MultiHeadAttention(Module):
             dropout        : Dropout layer
         """
         self.backend   = backend
-        self.n_embd    = n_embd 
+        self.n_embd    = n_embd
         self.n_head    = n_head
         self.causal    = causal
         self.attn_hidden_dim = n_embd // n_head
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
-        # self.q_projection = 
-        # self.k_projection = 
-        # self.v_projection = 
-        # self.out_projection = 
-        # self.dropout = 
+        self.q_projection = Linear(n_embd, n_embd, bias=bias, backend=backend)
+        self.k_projection = Linear(n_embd, n_embd, bias=bias, backend=backend)
+        self.v_projection = Linear(n_embd, n_embd, bias=bias, backend=backend)
+        self.out_projection = Linear(n_embd, n_embd, bias=bias, backend=backend)
+        self.dropout = Dropout(p_dropout=p_dropout)
         ### END YOUR SOLUTION
 
     def create_causal_mask(self, seq_len):
@@ -65,13 +64,20 @@ class MultiHeadAttention(Module):
             x: embeddings or hidden states (batch_size x seq_len x n_embd)
 
         Returns:
-            Q   : The Query Matrix (batch_size x num_heads x seq_len x attn_hidden_dim)
+            Q   : The Query Matrix          (batch_size x num_heads x seq_len x attn_hidden_dim)
             K^T : The Key Matrix Transposed (batch_size x num_heads x attn_hidden_dim x seq_len)
-            V   : The Value Matrix (batch_size x num_heads x seq_len x attn_hidden_dim)
+            V   : The Value Matrix          (batch_size x num_heads x seq_len x attn_hidden_dim)
         """
         batch_size, seq_len, n_embd = x.shape
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        x = x.view(batch_size * seq_len, n_embd)
+        q = self.q_projection(x).view(batch_size, seq_len, self.n_head, self.attn_hidden_dim)
+        kT = self.k_projection(x).view(batch_size, seq_len, self.n_head, self.attn_hidden_dim)
+        v = self.v_projection(x).view(batch_size, seq_len, self.n_head, self.attn_hidden_dim)
+
+        q = q.permute(0, 2, 1, 3)
+        kT = kT.permute(0, 2, 3, 1)
+        v = v.permute(0, 2, 1, 3)
         ### END YOUR SOLUTION
         return q, kT, v
     
@@ -97,10 +103,14 @@ class MultiHeadAttention(Module):
         result = None
         
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        qkt = (q @ kT) / (self.attn_hidden_dim ** 0.5)
+        if self.causal:
+            mask = self.create_causal_mask(queries_len)
+            qkt = qkt + mask
+        attn_scores = softmax(qkt, 3)
+        result = attn_scores @ v
         ### END YOUR SOLUTION
-
-        return result
+        return result.permute(0, 2, 1, 3).contiguous().view(batch_size, queries_len, self.n_embd)
 
     def forward(self, x):
         """Computes MultiHeadAttention with causal masking if needed. 
@@ -113,8 +123,13 @@ class MultiHeadAttention(Module):
         """
         batch_size, seq_len, n_embd = x.shape
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        q, kT, v = self.project_to_query_key_value(x)
+        attn = self.self_attention(q, kT, v)  # (batch_size, seq_len, n_embd)
+        attn = attn.view(batch_size * seq_len, n_embd)
+        out = self.out_projection(attn).view(batch_size, seq_len, n_embd)
+        return self.dropout(out)
         ### END YOUR SOLUTION
+
 
 
 class FeedForward(Module):
@@ -177,11 +192,10 @@ class TransformerLayer(Module):
             ff : FeedForward layer
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
-        # self.ln_1
-        # self.ln_2
-        # self.attention
-        # self.ff
+        self.ln_1 = LayerNorm1d(n_embd, ln_eps, backend=backend)
+        self.ln_2 = LayerNorm1d(n_embd, ln_eps, backend=backend)
+        self.attention = MultiHeadAttention(n_embd, n_head, bias=bias, backend=backend, p_dropout=p_dropout)
+        self.ff = FeedForward(n_embd, bias=bias, backend=backend, p_dropout=p_dropout)
         ### END YOUR SOLUTION
 
     def forward(self, x):
@@ -195,7 +209,14 @@ class TransformerLayer(Module):
         """
         batch_size, seq_len, n_embd = x.shape
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        ln1 = self.ln_1(x.view(batch_size * seq_len, n_embd))
+        ln1 = ln1.view(batch_size, seq_len, n_embd)
+        attn = self.attention(ln1)
+        x1 = x + attn
+        ln2 = self.ln_2(x1.view(batch_size * seq_len, n_embd))
+        ln2 = ln2.view(batch_size, seq_len, n_embd)
+        ff = self.ff(ln2)
+        return x1 + ff
         ### END YOUR SOLUTION
 
 
