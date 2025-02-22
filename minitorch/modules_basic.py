@@ -34,8 +34,8 @@ class Embedding(Module):
         self.embedding_dim  = embedding_dim  # Embedding Dimension
         ### BEGIN YOUR SOLUTION
         init_weights = np.random.normal(size=(num_embeddings, embedding_dim))
-        self.weights = tensor_from_numpy(init_weights, backend=backend)
-        self.weights = Parameter(self.weights)
+        init_weights = tensor_from_numpy(init_weights, backend=backend)
+        self.weights = Parameter(init_weights)
         ### END YOUR SOLUTION
     
     def forward(self, x: Tensor):
