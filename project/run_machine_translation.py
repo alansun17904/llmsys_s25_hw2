@@ -403,23 +403,23 @@ def main(dataset_name='bbaaaa/iwslt14-de-en-preprocess',
     for epoch_idx in range(n_epochs):
         desc = f'epoch {epoch_idx} / {n_epochs}'
 
-        # train(
-        #     model=model,
-        #     optimizer=optimizer,
-        #     examples=dataset['train'],
-        #     n_samples=samples_per_epoch,
-        #     batch_size=batch_size,
-        #     collate_fn=collate_fn,
-        #     desc=desc)
+        train(
+            model=model,
+            optimizer=optimizer,
+            examples=dataset['train'],
+            n_samples=samples_per_epoch,
+            batch_size=batch_size,
+            collate_fn=collate_fn,
+            desc=desc)
 
-        # validation_loss = evaluate_loss(
-        #     model=model,
-        #     examples=dataset['validation'],
-        #     batch_size=batch_size,
-        #     collate_fn=collate_fn,
-        #     desc=desc)
+        validation_loss = evaluate_loss(
+            model=model,
+            examples=dataset['validation'],
+            batch_size=batch_size,
+            collate_fn=collate_fn,
+            desc=desc)
 
-        # print(f'Epoch {epoch_idx}: Validation Loss = {validation_loss}')
+        print(f'Epoch {epoch_idx}: Validation Loss = {validation_loss}')
 
         gen_sents = generate(
             model=model,
